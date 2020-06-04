@@ -20,6 +20,8 @@ if __name__ == '__main__':
 						help='Path to file that contains VR sequence in fasta format [Required if dgrAnalysis mode]')
 	parser.add_argument('-t',dest='TR',
 						help='Path to file that contains TR seqeunce in fasta format [Required if dgrAnalsyis mode]')
+	parser.add_argument('--vt_folder',nargs='?',dest='vt_folder', const=True, default=False,
+						help='Set to true if VR and TR are a prefix for multiple files within the folder')
 	parser.add_argument('-r2',dest='rawdatafile2',
 						help='Path to raw sequencing datafile 2 if paired end reads')
 	parser.add_argument('--qf', nargs='?',dest='qf', const=True, default=False,
@@ -62,7 +64,7 @@ if __name__ == '__main__':
 			#Check if reference genome is correct format
 			if not utils.is_fasta_file(args.reference_genome):
 				raise OSError('Reference genome is not in fasta format: %s' % (args.reference_genome))
-		analysis.determine_DGR_activity_from_metagenome(args.rawdatafile, args.reference_genome, args.VR, args.TR, args.out_dir, args.rawdatafile2)
+		analysis.process_determine_DGR_activity(args.rawdatafile, args.reference_genome, args.VR, args.TR, args.out_dir, args.rawdatafile2, vt_folder)
 		#analysis.determine_DGR_activity_with_aligners(args.rawdatafile, args.reference_genome, args.VR, args.TR, args.out_dir)
 	elif args.mode == 'dgrFinder':
 		finder.search_for_DGRs(args.rawdatafile, args.out_dir)

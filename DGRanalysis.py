@@ -184,7 +184,17 @@ def determine_DGR_activity_with_aligners(rawdatafile, reference_genomefile, VR_f
 
 	utils.cleanup(temp_files, temp_blast_db)
 
-def determine_DGR_activity_from_metagenome(rawdatafile, reference_genomefile, VR_file, TR_file, output_folder, rawdatafile2):
+def process_determine_DGR_activity(rawdatafile, reference_genomefile, VR_file, TR_file, output_folder, rawdatafile2, vt_folder):
+	if vt_folder:
+		VRs = sorted(glob.glob('%s*-VR.fasta' % (VR_file)))
+		TRs = sorted(glob.glob('%s*-TR.fasta' % (TR_file)))
+	else:
+		VRs = [VR_file]
+		TRs = [TR_file]
+	determine_DGR_activity_from_metagenome(rawdatafile, reference_genomefile, VRs, TRs, output_folder, rawdatafile2)
+
+
+def determine_DGR_activity_from_metagenome(rawdatafile, reference_genomefile, VRs, TRs, output_folder, rawdatafile2):
 	#Create temp_directory in output_folder to store information
 	temp_folder = '%s/temp' % (output_folder)
 	Path(temp_folder).mkdir(parents=True, exist_ok=True)
@@ -198,8 +208,7 @@ def determine_DGR_activity_from_metagenome(rawdatafile, reference_genomefile, VR
 	temp_files.append(formatted_ref_genomefile)
 	utils.format_ref_genome_file(reference_genomefile, formatted_ref_genomefile)
 
-	VR_start, VR_end, VR_contig_num, VR_seq = utils.extract_sequence(VR_file, formatted_ref_genomefile)
-	TR_start, TR_end, TR_contig_num, TR_seq = utils.extract_sequence(TR_file, formatted_ref_genomefile)
+	
 
 	if len(VR_seq) != len(TR_seq):
 		raise ValueError('VR and TR lengths are not equal')
@@ -224,7 +233,7 @@ def determine_DGR_activity_from_metagenome(rawdatafile, reference_genomefile, VR
 			os.system('rm %s/%s_2.fastq' % (temp_folder, rawdata_name))
 		rawdatafile = '%s/%s.fastq' % (temp_folder, rawdata_name)
 
-	unique_name = '%s-Contig%s_%s_%s' % (reference_genome_name, VR_contig_num, VR_start, VR_end)
+	
 
 
 	#If the rawdata file is in fastq, it needs to be converted to fasta for blast, delete that file at the end
@@ -242,204 +251,115 @@ def determine_DGR_activity_from_metagenome(rawdatafile, reference_genomefile, VR
 	else:
 		rawdata_fasta = rawdatafile
 
-	
+	for VR_file, TR_file in zip(VRs, TRs):
+		VR_start, VR_end, VR_contig_num, VR_seq = utils.extract_sequence(VR_file, formatted_ref_genomefile)
+		TR_start, TR_end, TR_contig_num, TR_seq = utils.extract_sequence(TR_file, formatted_ref_genomefile)
 
-	#Define VR area +/- 100 bp in order to map to VR region
-	vr_100_filename = '%s/VR-100bp.fasta' % (temp_folder)
-	temp_files.append(vr_100_filename)
-	with open(vr_100_filename, 'w') as vr_100:
-		with open(formatted_ref_genomefile, 'r') as ref_genome:
-			rg_parser = SeqIO.parse(ref_genome, 'fasta')
-			for contig in rg_parser:
-				if contig.name == 'Contig%i' % (VR_contig_num):
-					vr_area_start = VR_start - 100
-					if vr_area_start < 0:
-						vr_area_start = 0
-					vr_area_end = VR_end + 100
-					if vr_area_end > len(contig.seq):
-						vr_area_end = len(contig.seq)
-					vr_100.write('>VR_area_100\n%s' % (str(contig.seq[vr_area_start:vr_area_end])))
-					break
+		unique_name = '%s-Contig%s_%s_%s' % (reference_genome_name, VR_contig_num, VR_start, VR_end)
 
-	#Store all sequences from raw data that may potentially match to the VR area +/- 100 bp
-	sequences_matched_to_vr_100_area = '%s/%s-seqs_match_VR100.fasta' % (temp_folder, unique_name)
-	vr_100_blast_database = '%s/vr100_blastdb' % (temp_folder)
-	blastoutput_from_vr100_blast = '%s/blastoutput_vr100.txt' % (temp_folder)
-	
-	#Delete these files at the end during cleanup
-	temp_files.append(sequences_matched_to_vr_100_area)
-	temp_blast_db.append(vr_100_blast_database)
-	temp_files.append(blastoutput_from_vr100_blast)
+		#Define VR area +/- 100 bp in order to map to VR region
+		vr_100_filename = '%s/VR-100bp.fasta' % (temp_folder)
+		temp_files.append(vr_100_filename)
+		with open(vr_100_filename, 'w') as vr_100:
+			with open(formatted_ref_genomefile, 'r') as ref_genome:
+				rg_parser = SeqIO.parse(ref_genome, 'fasta')
+				for contig in rg_parser:
+					if contig.name == 'Contig%i' % (VR_contig_num):
+						vr_area_start = VR_start - 100
+						if vr_area_start < 0:
+							vr_area_start = 0
+						vr_area_end = VR_end + 100
+						if vr_area_end > len(contig.seq):
+							vr_area_end = len(contig.seq)
+						vr_100.write('>VR_area_100\n%s' % (str(contig.seq[vr_area_start:vr_area_end])))
+						break
 
-	#Create blast database with the VR+/-100 area
-	cline = NcbimakeblastdbCommandline(dbtype='nucl', input_file=vr_100_filename, out=vr_100_blast_database)
-	cline()
+		#Store all sequences from raw data that may potentially match to the VR area +/- 100 bp
+		sequences_matched_to_vr_100_area = '%s/%s-seqs_match_VR100.fasta' % (temp_folder, unique_name)
+		vr_100_blast_database = '%s/vr100_blastdb' % (temp_folder)
+		blastoutput_from_vr100_blast = '%s/blastoutput_vr100.txt' % (temp_folder)
+		
+		#Delete these files at the end during cleanup
+		temp_files.append(sequences_matched_to_vr_100_area)
+		temp_blast_db.append(vr_100_blast_database)
+		temp_files.append(blastoutput_from_vr100_blast)
 
-	print("Finding potential raw data sequences that match to the surround VR area")
+		#Create blast database with the VR+/-100 area
+		cline = NcbimakeblastdbCommandline(dbtype='nucl', input_file=vr_100_filename, out=vr_100_blast_database)
+		cline()
 
-	#Setup blast output options
-	#output_options = ['qseqid', 'sseqid', 'pident', 'length', 'mismatch', 'gapopen', 'qstart', 'qend', 'sstart', 'send', 'evalue', 'bitscore', 'sseq', 'qseq']
-	output_options = ['qseqid', 'length', 'qlen']
-	blast_out_str = ' '.join(output_options)
+		print("Finding potential raw data sequences that match to the surround VR area")
 
-	#Blast all rawdata to the VR+/-100 blast database
-	cline = NcbiblastnCommandline(out=blastoutput_from_vr100_blast, db=vr_100_blast_database, query=rawdata_fasta, outfmt='6 %s' % (blast_out_str), word_size=8, reward=1, penalty=-1, evalue=1e-4, gapopen=6, gapextend=6, perc_identity=80, task='blastn', dust='no')
-	cline()	
+		#Setup blast output options
+		#output_options = ['qseqid', 'sseqid', 'pident', 'length', 'mismatch', 'gapopen', 'qstart', 'qend', 'sstart', 'send', 'evalue', 'bitscore', 'sseq', 'qseq']
+		output_options = ['qseqid', 'length', 'qlen']
+		blast_out_str = ' '.join(output_options)
 
-	
-	#Find sequences that had at least 50% of their sequence align (gets rid of partially aligned sequences)
-	potential_seqs = []
-	with open(blastoutput_from_vr100_blast, 'r') as f:
-		reader = csv.reader(f, delimiter='\t')
-		for query_id, align_len, query_len in reader:
-			#Check to see if at least 50% of the rawdata sequence aligned
-			if int(align_len) >= (0.8 * int(query_len)):
-				potential_seqs.append(query_id)
-	
-	if len(potential_seqs) == 0:
-		utils.cleanup(temp_files, temp_blast_db)
-		raise ValueError('There were no sequences that matched to VR')
+		#Blast all rawdata to the VR+/-100 blast database
+		cline = NcbiblastnCommandline(out=blastoutput_from_vr100_blast, db=vr_100_blast_database, query=rawdata_fasta, outfmt='6 %s' % (blast_out_str), word_size=8, reward=1, penalty=-1, evalue=1e-4, gapopen=6, gapextend=6, perc_identity=80, task='blastn', dust='no')
+		cline()	
 
-	#Now read in the rawdata file and create new data file is only the sequences that aligned to VR area +/- 100 bp
-	#Output: sequences_matched_to_vr_100_area now contains all rawdata reads that potentially match to VR
-	with open(sequences_matched_to_vr_100_area, 'w') as vr_100_writer:
-		data = SeqIO.parse(rawdata_fasta, 'fasta')
-		for sequence in data:
-			if sequence.name == potential_seqs[0]:
-				vr_100_writer.write('>%s\n%s\n' % (sequence.name, str(sequence.seq)))
-				if len(potential_seqs) > 1:
-					potential_seqs.pop(0)
-				else:
-					break
+		
+		#Find sequences that had at least 50% of their sequence align (gets rid of partially aligned sequences)
+		potential_seqs = []
+		with open(blastoutput_from_vr100_blast, 'r') as f:
+			reader = csv.reader(f, delimiter='\t')
+			for query_id, align_len, query_len in reader:
+				#Check to see if at least 50% of the rawdata sequence aligned
+				if int(align_len) >= (0.8 * int(query_len)):
+					potential_seqs.append(query_id)
+		
+		if len(potential_seqs) == 0:
+			utils.cleanup(temp_files, temp_blast_db)
+			raise ValueError('There were no sequences that matched to VR')
 
-	print("Determining which candidate sequences match best to VR")
+		#Now read in the rawdata file and create new data file is only the sequences that aligned to VR area +/- 100 bp
+		#Output: sequences_matched_to_vr_100_area now contains all rawdata reads that potentially match to VR
+		with open(sequences_matched_to_vr_100_area, 'w') as vr_100_writer:
+			data = SeqIO.parse(rawdata_fasta, 'fasta')
+			for sequence in data:
+				if sequence.name == potential_seqs[0]:
+					vr_100_writer.write('>%s\n%s\n' % (sequence.name, str(sequence.seq)))
+					if len(potential_seqs) > 1:
+						potential_seqs.pop(0)
+					else:
+						break
 
-	#Go through the rawdata reads that potentially map to VR and determine if there is a better match somewhere else by using the entire ref genome
-	#Todo: try bowtie2 or BBmap as well
-	#First create a new blast database with the entire reference genome
-	entire_ref_genome_blast_database = '%s/ref_gen_blastdb' % (temp_folder)
-	temp_blast_db.append(entire_ref_genome_blast_database)
+		print("Determining which candidate sequences match best to VR")
 
-	cline = NcbimakeblastdbCommandline(dbtype='nucl', input_file=formatted_ref_genomefile, out=entire_ref_genome_blast_database)
-	time.sleep(3)
-	cline()
+		#Go through the rawdata reads that potentially map to VR and determine if there is a better match somewhere else by using the entire ref genome
+		#Todo: try bowtie2 or BBmap as well
+		#First create a new blast database with the entire reference genome
+		entire_ref_genome_blast_database = '%s/ref_gen_blastdb' % (temp_folder)
+		temp_blast_db.append(entire_ref_genome_blast_database)
 
-	#Next create files for output, need to parse XML files to determine is best match is somewhere else
-	best_alignments_blastoutput = '%s/best_alignments_blastoutput.xml' % (temp_folder)
-	temp_files.append(best_alignments_blastoutput)
+		cline = NcbimakeblastdbCommandline(dbtype='nucl', input_file=formatted_ref_genomefile, out=entire_ref_genome_blast_database)
+		time.sleep(3)
+		cline()
 
-	#Blast the candidate reads to the entire genome to find alignment, using a more stringent alignment.
-	#If read doesn't match anywhere else or matches best to VR region, then will use the read for downstream analysis
-	#Input file: sequences_matched_to_vr_100_area
-	#To do: find the optimum search settings for more stringency
-	cline = NcbiblastnCommandline(out=best_alignments_blastoutput, db=entire_ref_genome_blast_database, query=sequences_matched_to_vr_100_area, outfmt=5, word_size=20, reward=1, penalty=-2, evalue=1e-4, gapopen=6, gapextend=2, perc_identity=80)
-	cline()
+		#Next create files for output, need to parse XML files to determine is best match is somewhere else
+		best_alignments_blastoutput = '%s/best_alignments_blastoutput.xml' % (temp_folder)
+		temp_files.append(best_alignments_blastoutput)
 
-	#Now parse the XML file and find the best match (or no match)
-	#Output includes all transcripts that match to VR (but some may also match to TR and thus need to be filtered)
-	vr_tr_transcripts = '%s/vr_tr_transcripts.fasta' % (temp_folder)
-	reads_that_matched_better_somewhere_else = '%s/reads_that_matched_better_somewhere_else.fasta' % (temp_folder)
-	temp_files.append(vr_tr_transcripts)
-	#temp_files.append(reads_that_matched_better_somewhere_else)
+		#Blast the candidate reads to the entire genome to find alignment, using a more stringent alignment.
+		#If read doesn't match anywhere else or matches best to VR region, then will use the read for downstream analysis
+		#Input file: sequences_matched_to_vr_100_area
+		#To do: find the optimum search settings for more stringency
+		cline = NcbiblastnCommandline(out=best_alignments_blastoutput, db=entire_ref_genome_blast_database, query=sequences_matched_to_vr_100_area, outfmt=5, word_size=20, reward=1, penalty=-2, evalue=1e-4, gapopen=6, gapextend=2, perc_identity=80)
+		cline()
 
-	vr_tr_names = []
-	with open(best_alignments_blastoutput, 'r') as blastoutput:
-		parser = NCBIXML.parse(blastoutput)
-		for result in parser:
-			#For each sequence, find the best hit
-			if len(result.alignments) > 0:
-				lowest = 1
-				best = [0, 0]
-				for anum, alignment in enumerate(result.alignments):
-					for hnum, hsp in enumerate(alignment.hsps):
-						if hsp.expect < lowest:
-							lowest = hsp.expect
-							best = [anum, hnum]
-				alignment = result.alignments[best[0]]
-				hsp = alignment.hsps[best[1]]
-				if alignment.hit_def == 'Contig%i' % (VR_contig_num):
-					within = False
-					if hsp.sbjct_start >= VR_start and hsp.sbjct_start <= VR_end:
-						within = True
-					if hsp.sbjct_end >= VR_start and hsp.sbjct_end <= VR_end:
-						within = True
-					if hsp.sbjct_start <= VR_start and hsp.sbjct_end >= VR_end:
-						within = True
-					if within:
-						vr_tr_names.append(result.query)
+		#Now parse the XML file and find the best match (or no match)
+		#Output includes all transcripts that match to VR (but some may also match to TR and thus need to be filtered)
+		vr_tr_transcripts = '%s/vr_tr_transcripts.fasta' % (temp_folder)
+		reads_that_matched_better_somewhere_else = '%s/reads_that_matched_better_somewhere_else.fasta' % (temp_folder)
+		temp_files.append(vr_tr_transcripts)
+		#temp_files.append(reads_that_matched_better_somewhere_else)
 
-	if len(vr_tr_names) == 0:
-		utils.cleanup(temp_files, temp_blast_db)
-		raise ValueError('There were no sequences that matched to VR')
-
-	with open(vr_tr_transcripts, 'w') as vr_tr_writer:
-		sequences = SeqIO.parse(sequences_matched_to_vr_100_area, 'fasta')
-		for sequence in sequences:
-			if sequence.name == vr_tr_names[0]:
-				vr_tr_writer.write('>%s\n%s\n' % (sequence.name, str(sequence.seq)))
-				if len(vr_tr_names) > 1:
-					vr_tr_names.pop(0)
-				else:
-					break
-
-	#Remove any potential TR sequences
-	#Extract the TR area +/- 100 bp, then see if any of the tr_vr_sequences align perfectly to TR
-	#To do: allow for 1-2 mismatches
-	sequences = SeqIO.parse(formatted_ref_genomefile, 'fasta')
-	for sequence in sequences:
-		if sequence.name == 'Contig%i' % (TR_contig_num):
-			start = TR_start - 100
-			if start < 0:
-				start = 0
-			end = TR_end + 100
-			if end > len(sequence.seq):
-				end = len(sequence.seq)
-			tr_area = sequence.seq[start:end]
-			tr_area_rev = tr_area.reverse_complement()
-
-	vr_sequences = '%s/VR_sequences-%s.fasta' % (output_folder, unique_name)
-	num_trs = 0
-	with open(vr_sequences, 'w') as vr_writer:
-		sequences = SeqIO.parse(vr_tr_transcripts, 'fasta')
-		for sequence in sequences:
-			if sequence.seq in tr_area or sequence.seq in tr_area_rev:
-				num_trs += 1
-			else:
-				vr_writer.write('>%s\n%s\n' % (sequence.name, str(sequence.seq)))
-
-	#Align VR sequences and orient the VR/TR pair
-	aligned_VR_sequences = '%s/aligned_VR_sequences-%s.fa' % (output_folder, unique_name)
-	vr_blast_database = '%s/vrblastdb' % (temp_folder)
-	vr_blast_output = '%s/vr_aligning_blastout.xml' % (temp_folder)
-
-	temp_blast_db.append(vr_blast_database)
-	temp_files.append(vr_blast_output)
-
-	cline = NcbimakeblastdbCommandline(dbtype='nucl', input_file=VR_file, out=vr_blast_database)
-	cline()
-
-	cline = NcbiblastnCommandline(out=vr_blast_output, db=vr_blast_database, query=vr_sequences, outfmt=5, word_size=8, reward=1, penalty=-1, evalue=1e-4, gapopen=2, gapextend=1, perc_identity=50)
-	cline()
-
-	amiss, tmiss = 0, 0
-	for i in range(len(VR_seq)):
-		if VR_seq[i] != TR_seq[i]:
-			if TR_seq[i] == 'A':
-				amiss += 1
-			elif TR_seq[i] == 'T':
-				tmiss += 1
-	reverse = False
-	if tmiss > amiss:
-		reverse = True
-
-	with open(vr_blast_output, 'r') as f:
-		results = NCBIXML.parse(f)
-		with open(aligned_VR_sequences, 'w') as aligned_VR_writer:
-			vr_oriented = VR_seq
-			if reverse:
-				vr_oriented = str(Seq(VR_seq).reverse_complement())
-			aligned_VR_writer.write('>%s\n%s\n' % ('VR', vr_oriented))
-			for result in results:
+		vr_tr_names = []
+		with open(best_alignments_blastoutput, 'r') as blastoutput:
+			parser = NCBIXML.parse(blastoutput)
+			for result in parser:
+				#For each sequence, find the best hit
 				if len(result.alignments) > 0:
 					lowest = 1
 					best = [0, 0]
@@ -450,25 +370,118 @@ def determine_DGR_activity_from_metagenome(rawdatafile, reference_genomefile, VR
 								best = [anum, hnum]
 					alignment = result.alignments[best[0]]
 					hsp = alignment.hsps[best[1]]
-					seq_out = ''
-					if hsp.sbjct_start < hsp.sbjct_end:
-						start = hsp.sbjct_start - 1
+					if alignment.hit_def == 'Contig%i' % (VR_contig_num):
+						within = False
+						if hsp.sbjct_start >= VR_start and hsp.sbjct_start <= VR_end:
+							within = True
+						if hsp.sbjct_end >= VR_start and hsp.sbjct_end <= VR_end:
+							within = True
+						if hsp.sbjct_start <= VR_start and hsp.sbjct_end >= VR_end:
+							within = True
+						if within:
+							vr_tr_names.append(result.query)
+
+		if len(vr_tr_names) == 0:
+			utils.cleanup(temp_files, temp_blast_db)
+			raise ValueError('There were no sequences that matched to VR')
+
+		with open(vr_tr_transcripts, 'w') as vr_tr_writer:
+			sequences = SeqIO.parse(sequences_matched_to_vr_100_area, 'fasta')
+			for sequence in sequences:
+				if sequence.name == vr_tr_names[0]:
+					vr_tr_writer.write('>%s\n%s\n' % (sequence.name, str(sequence.seq)))
+					if len(vr_tr_names) > 1:
+						vr_tr_names.pop(0)
 					else:
-						start = hsp.sbjct_end - 1
-					i = 0
-					for i in range(start):
-						seq_out += '-'
-					if hsp.sbjct_start < hsp.sbjct_end:
-						seq_out += hsp.query
-					else:
-						seq_out += str(Seq(hsp.query).reverse_complement())
-					end = len(VR_seq) - start - len(hsp.query)
-					i = 0
-					for i in range(end):
-						seq_out += '-'
-					if reverse:
-						seq_out = str(Seq(seq_out).reverse_complement())
-					aligned_VR_writer.write('>%s\n%s\n' % (result.query, seq_out))
+						break
+
+		#Remove any potential TR sequences
+		#Extract the TR area +/- 100 bp, then see if any of the tr_vr_sequences align perfectly to TR
+		#To do: allow for 1-2 mismatches
+		sequences = SeqIO.parse(formatted_ref_genomefile, 'fasta')
+		for sequence in sequences:
+			if sequence.name == 'Contig%i' % (TR_contig_num):
+				start = TR_start - 100
+				if start < 0:
+					start = 0
+				end = TR_end + 100
+				if end > len(sequence.seq):
+					end = len(sequence.seq)
+				tr_area = sequence.seq[start:end]
+				tr_area_rev = tr_area.reverse_complement()
+
+		vr_sequences = '%s/VR_sequences-%s.fasta' % (output_folder, unique_name)
+		num_trs = 0
+		with open(vr_sequences, 'w') as vr_writer:
+			sequences = SeqIO.parse(vr_tr_transcripts, 'fasta')
+			for sequence in sequences:
+				if sequence.seq in tr_area or sequence.seq in tr_area_rev:
+					num_trs += 1
+				else:
+					vr_writer.write('>%s\n%s\n' % (sequence.name, str(sequence.seq)))
+
+		#Align VR sequences and orient the VR/TR pair
+		aligned_VR_sequences = '%s/aligned_VR_sequences-%s.fa' % (output_folder, unique_name)
+		vr_blast_database = '%s/vrblastdb' % (temp_folder)
+		vr_blast_output = '%s/vr_aligning_blastout.xml' % (temp_folder)
+
+		temp_blast_db.append(vr_blast_database)
+		temp_files.append(vr_blast_output)
+
+		cline = NcbimakeblastdbCommandline(dbtype='nucl', input_file=VR_file, out=vr_blast_database)
+		cline()
+
+		cline = NcbiblastnCommandline(out=vr_blast_output, db=vr_blast_database, query=vr_sequences, outfmt=5, word_size=8, reward=1, penalty=-1, evalue=1e-4, gapopen=2, gapextend=1, perc_identity=50)
+		cline()
+
+		amiss, tmiss = 0, 0
+		for i in range(len(VR_seq)):
+			if VR_seq[i] != TR_seq[i]:
+				if TR_seq[i] == 'A':
+					amiss += 1
+				elif TR_seq[i] == 'T':
+					tmiss += 1
+		reverse = False
+		if tmiss > amiss:
+			reverse = True
+
+		with open(vr_blast_output, 'r') as f:
+			results = NCBIXML.parse(f)
+			with open(aligned_VR_sequences, 'w') as aligned_VR_writer:
+				vr_oriented = VR_seq
+				if reverse:
+					vr_oriented = str(Seq(VR_seq).reverse_complement())
+				aligned_VR_writer.write('>%s\n%s\n' % ('VR', vr_oriented))
+				for result in results:
+					if len(result.alignments) > 0:
+						lowest = 1
+						best = [0, 0]
+						for anum, alignment in enumerate(result.alignments):
+							for hnum, hsp in enumerate(alignment.hsps):
+								if hsp.expect < lowest:
+									lowest = hsp.expect
+									best = [anum, hnum]
+						alignment = result.alignments[best[0]]
+						hsp = alignment.hsps[best[1]]
+						seq_out = ''
+						if hsp.sbjct_start < hsp.sbjct_end:
+							start = hsp.sbjct_start - 1
+						else:
+							start = hsp.sbjct_end - 1
+						i = 0
+						for i in range(start):
+							seq_out += '-'
+						if hsp.sbjct_start < hsp.sbjct_end:
+							seq_out += hsp.query
+						else:
+							seq_out += str(Seq(hsp.query).reverse_complement())
+						end = len(VR_seq) - start - len(hsp.query)
+						i = 0
+						for i in range(end):
+							seq_out += '-'
+						if reverse:
+							seq_out = str(Seq(seq_out).reverse_complement())
+						aligned_VR_writer.write('>%s\n%s\n' % (result.query, seq_out))
 
 	utils.cleanup(temp_files, temp_blast_db)
 
