@@ -206,6 +206,7 @@ def determine_DGR_activity_from_metagenome(rawdatafile, reference_genomefile, VR
 
 	#Get the name of the reference genome file and remove the file extension
 	reference_genome_name = '.'.join(reference_genomefile.split('/')[-1].split('.')[:-1])
+	reference_genome_name = reference_genome_name.replace('_contigs', '')
 
 	#Get the name of the rawdata file and remove the file extension
 	rawdata_name = rawdatafile.split('/')[-1].split('.')[0]
@@ -223,7 +224,7 @@ def determine_DGR_activity_from_metagenome(rawdatafile, reference_genomefile, VR
 			os.system('rm %s/%s_2.fastq' % (temp_folder, rawdata_name))
 		rawdatafile = '%s/%s.fastq' % (temp_folder, rawdata_name)
 
-	unique_name = '%s-%s' % (reference_genome_name, rawdata_name)
+	unique_name = '%s-Contig%s_%s_%s' % (reference_genome_name, VR_contig_num, VR_start, VR_end)
 
 
 	#If the rawdata file is in fastq, it needs to be converted to fasta for blast, delete that file at the end
