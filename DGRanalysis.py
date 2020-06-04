@@ -208,7 +208,7 @@ def determine_DGR_activity_from_metagenome(rawdatafile, reference_genomefile, VR
 	reference_genome_name = '.'.join(reference_genomefile.split('/')[-1].split('.')[:-1])
 
 	#Get the name of the rawdata file and remove the file extension
-	rawdata_name = '.'.join(rawdatafile.split('/')[-1].split('.')[0])
+	rawdata_name = rawdatafile.split('/')[-1].split('.')[0]
 
 	#Determine if rawdatafile is in .gz format
 	if rawdatafile.split('.')[-1] == 'gz':
