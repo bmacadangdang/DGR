@@ -184,7 +184,7 @@ def determine_DGR_activity_with_aligners(rawdatafile, reference_genomefile, VR_f
 
 	utils.cleanup(temp_files, temp_blast_db)
 
-def determine_DGR_activity_from_metagenome(rawdatafile, reference_genomefile, VR_file, TR_file, output_folder):
+def determine_DGR_activity_from_metagenome(rawdatafile, reference_genomefile, VR_file, TR_file, output_folder, rawdatafile2):
 	#Create temp_directory in output_folder to store information
 	temp_folder = '%s/temp' % (output_folder)
 	Path(temp_folder).mkdir(parents=True, exist_ok=True)
