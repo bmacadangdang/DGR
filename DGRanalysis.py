@@ -257,6 +257,8 @@ def determine_DGR_activity_from_metagenome(rawdatafile, reference_genomefile, VR
 
 		unique_name = '%s-Contig%s_%s_%s' % (reference_genome_name, VR_contig_num, VR_start, VR_end)
 
+		print('Working on %s' % (unique_name))
+
 		#Define VR area +/- 100 bp in order to map to VR region
 		vr_100_filename = '%s/VR-100bp.fasta' % (temp_folder)
 		temp_files.append(vr_100_filename)
