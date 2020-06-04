@@ -62,7 +62,7 @@ if __name__ == '__main__':
 			#Check if reference genome is correct format
 			if not utils.is_fasta_file(args.reference_genome):
 				raise OSError('Reference genome is not in fasta format: %s' % (args.reference_genome))
-		analysis.determine_DGR_activity_from_metagenome(args.rawdatafile, args.reference_genome, args.VR, args.TR, args.out_dir)
+		analysis.determine_DGR_activity_from_metagenome(args.rawdatafile, args.reference_genome, args.VR, args.TR, args.out_dir, args.rawdatafile2)
 		#analysis.determine_DGR_activity_with_aligners(args.rawdatafile, args.reference_genome, args.VR, args.TR, args.out_dir)
 	elif args.mode == 'dgrFinder':
 		finder.search_for_DGRs(args.rawdatafile, args.out_dir)

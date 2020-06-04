@@ -208,7 +208,20 @@ def determine_DGR_activity_from_metagenome(rawdatafile, reference_genomefile, VR
 	reference_genome_name = '.'.join(reference_genomefile.split('/')[-1].split('.')[:-1])
 
 	#Get the name of the rawdata file and remove the file extension
-	rawdata_name = '.'.join(rawdatafile.split('/')[-1].split('.')[:-1])
+	rawdata_name = '.'.join(rawdatafile.split('/')[-1].split('.')[0])
+
+	#Determine if rawdatafile is in .gz format
+	if rawdatafile.split('.')[-1] == 'gz':
+		print('Uncompressing raw data')
+		os.system('cp %s %s/%s.fastq.gz' % (rawdatafile, temp_folder, rawdata_name))
+		os.system('unpigz -p 4 %s/%s.fastq.gz' % (temp_folder, rawdata_name))
+		temp_files.append('%s/%s.fastq' % (temp_folder, rawdata_name))
+		if rawdatafile2 is not None:
+			os.system('cp %s %s/%s_2.fastq.gz' % (rawdatafile, temp_folder, rawdata_name))
+			os.system('unpigz -p 4 %s/%s_2.fastq.gz' % (temp_folder, rawdata_name))
+			os.system('cat %s/%s_2.fastq >> %s/%s.fastq' % (temp_folder, rawdata_name, temp_folder, rawdata_name))
+			os.system('rm %s/%s_2.fastq' % (temp_folder, rawdata_name))
+		rawdatafile = '%s/%s.fastq' % (temp_folder, rawdata_name)
 
 	unique_name = '%s-%s' % (reference_genome_name, rawdata_name)
 
@@ -394,7 +407,7 @@ def determine_DGR_activity_from_metagenome(rawdatafile, reference_genomefile, VR
 				vr_writer.write('>%s\n%s\n' % (sequence.name, str(sequence.seq)))
 
 	#Align VR sequences and orient the VR/TR pair
-	aligned_VR_sequences = '%s/aligned_VR_sequences-%s.fasta' % (output_folder, unique_name)
+	aligned_VR_sequences = '%s/aligned_VR_sequences-%s.fa' % (output_folder, unique_name)
 	vr_blast_database = '%s/vrblastdb' % (temp_folder)
 	vr_blast_output = '%s/vr_aligning_blastout.xml' % (temp_folder)
 

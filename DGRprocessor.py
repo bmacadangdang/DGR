@@ -33,7 +33,7 @@ def process_raw_data(r1, r2, output_folder):
 	
 	sample_name = r1.split('/')[-1].split('.')[0].split('_')[0]
 
-	'''
+	
 	#Create samples.txt for illumina-utils quality filtering
 	samples_file = '%s/samples-%s.txt' % (temp_folder, sample_name)
 	temp_files.append(samples_file)
@@ -50,7 +50,7 @@ def process_raw_data(r1, r2, output_folder):
 
 	temp_files.append('%s/%s-QUALITY_PASSED_R1.fastq' % (temp_folder, sample_name))
 	temp_files.append('%s/%s-QUALITY_PASSED_R2.fastq' % (temp_folder, sample_name))
-	'''
+	
 
 	#Filter out reads that map to human genome
 	'''
@@ -66,7 +66,7 @@ def process_raw_data(r1, r2, output_folder):
 		#os.system('kneaddata --input%s --reference-db genomes/hg37dec_v0.1 --trimmomatic /home/brm4/Trimmomatic-0.39/ --output %s' % (r1, QC_folder))
 	'''
 	#Filter out reads that map to human genome using bowtie2
-	'''if r2 is not None:
+	if r2 is not None:
 		#os.system('bowtie2 --very-sensitive --dovetail --quiet --threads 4 -x genomes/hg37dec_v0.1 -1 %s/%s-QUALITY_PASSED_R1.fastq -2 %s/%s-QUALITY_PASSED_R2.fastq --un-conc %s/%s_clean.fastq --al-conc %s/%s_contam.fastq' % (temp_folder, sample_name, temp_folder, sample_name, QC_folder, sample_name, temp_folder, sample_name))
 		aligned_file = '%s/%s-aligned.sam' % (temp_folder, sample_name)
 		temp_files.append(aligned_file)
@@ -83,12 +83,12 @@ def process_raw_data(r1, r2, output_folder):
 		print('Converting sam to bam')
 		os.system('samtools view --threads 4 -bS -f 12 %s > %s' % (aligned_file, unmapped_bam))
 		print('Sorting bam')
-		os.system('samtools sort -m 7G --threads 4 -n -o %s %s' % (sorted_unmapped_bam, unmapped_bam))
+		os.system('samtools sort -m 4G --threads 4 -n -o %s %s' % (sorted_unmapped_bam, unmapped_bam))
 		print('Converting bam to fastq')
 		os.system('samtools fastq --threads 4 -1 %s -2 %s -0 /dev/null -s /dev/null -n %s' % (unmapped_fq1, unmapped_fq2, sorted_unmapped_bam))
 	else:
 		pass
-	'''
+	
 
 	unmapped_fq1 = '%s/%s-unmapped1.fastq' % (QC_folder, sample_name)
 	unmapped_fq2 = '%s/%s-unmapped2.fastq' % (QC_folder, sample_name)

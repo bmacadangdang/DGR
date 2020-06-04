@@ -1,0 +1,9 @@
+*.pyc
+ref
+test
+*.sublime-project
+DGR_scripts.py
+DGR.sublime-workspace
+genomes
+btheta
+yassour
