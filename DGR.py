@@ -28,6 +28,7 @@ if __name__ == '__main__':
 						help='Option to quality filter the reads prior to processing')
 	args = parser.parse_args()
 
+	'''
 	if args.mode == 'dgrAnalysis':
 		#Checking if VR and TR are specified 
 		if args.VR == None:
@@ -39,6 +40,7 @@ if __name__ == '__main__':
 		if not utils.is_fasta_file(args.TR):
 			raise OSError('TR file needs to be a fasta file: %s' % (args.TR))
 
+	'''
 	#Need to add handling of gz files
 
 	'''
