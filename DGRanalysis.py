@@ -208,11 +208,6 @@ def determine_DGR_activity_from_metagenome(rawdatafile, reference_genomefile, VR
 	temp_files.append(formatted_ref_genomefile)
 	utils.format_ref_genome_file(reference_genomefile, formatted_ref_genomefile)
 
-	
-
-	if len(VR_seq) != len(TR_seq):
-		raise ValueError('VR and TR lengths are not equal')
-
 	#Get the name of the reference genome file and remove the file extension
 	reference_genome_name = '.'.join(reference_genomefile.split('/')[-1].split('.')[:-1])
 	reference_genome_name = reference_genome_name.replace('_contigs', '')
@@ -233,8 +228,6 @@ def determine_DGR_activity_from_metagenome(rawdatafile, reference_genomefile, VR
 			os.system('rm %s/%s_2.fastq' % (temp_folder, rawdata_name))
 		rawdatafile = '%s/%s.fastq' % (temp_folder, rawdata_name)
 
-	
-
 
 	#If the rawdata file is in fastq, it needs to be converted to fasta for blast, delete that file at the end
 	#Otherwise just use the fastafile supplied and it does not need ot be deleted
@@ -254,6 +247,9 @@ def determine_DGR_activity_from_metagenome(rawdatafile, reference_genomefile, VR
 	for VR_file, TR_file in zip(VRs, TRs):
 		VR_start, VR_end, VR_contig_num, VR_seq = utils.extract_sequence(VR_file, formatted_ref_genomefile)
 		TR_start, TR_end, TR_contig_num, TR_seq = utils.extract_sequence(TR_file, formatted_ref_genomefile)
+
+		if len(VR_seq) != len(TR_seq):
+			raise ValueError('VR and TR lengths are not equal')
 
 		unique_name = '%s-Contig%s_%s_%s' % (reference_genome_name, VR_contig_num, VR_start, VR_end)
 
