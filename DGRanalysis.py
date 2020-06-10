@@ -278,7 +278,7 @@ def determine_DGR_activity_from_metagenome(rawdatafile, reference_genomefile, VR
 						break
 
 	#Store all sequences from raw data that may potentially match to the VR area +/- 100 bp
-	sequences_matched_to_vr_100_area = '%s/%s-seqs_match_VR100.fasta' % (temp_folder, unique_name)
+	sequences_matched_to_vr_100_area = '%s/%s-seqs_match_VR100.fasta' % (temp_folder, rawdata_name)
 	vr_100_blast_database = '%s/vr100_blastdb' % (temp_folder)
 	blastoutput_from_vr100_blast = '%s/blastoutput_vr100.txt' % (temp_folder)
 	
