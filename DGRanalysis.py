@@ -186,6 +186,10 @@ def determine_DGR_activity_with_aligners(rawdatafile, reference_genomefile, VR_f
 
 def process_determine_DGR_activity(rawdatafile, reference_genomefile, VR_file, TR_file, output_folder, rawdatafile2, vt_folder):
 	if vt_folder:
+		if VR_file[-1] != '/':
+			VR_file += '/'
+		if TR_file[-1] != '/':
+			TR_file += '/'
 		VRs = sorted(glob.glob('%s*-VR.fasta' % (VR_file)))
 		TRs = sorted(glob.glob('%s*-TR.fasta' % (TR_file)))
 	else:
