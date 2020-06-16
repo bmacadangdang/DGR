@@ -131,6 +131,10 @@ def search_for_DGRs(contigfile, output_folder, hmmfile=None):
 	Path('%s/01_Filtered' % (output_folder)).mkdir(parents=True, exist_ok=True)
 	Path('%s/02_Processed' % (output_folder)).mkdir(parents=True, exist_ok=True)
 
+	#Create error log for later debugging
+	errors = []
+	error_file = '%s/DGRfinder_%s_errors.txt' % (output_folder, rawdata_name)
+
 	#If the rawdata file is in fastq, it needs to be converted to fasta for blast, delete that file at the end
 	#Otherwise just use the fastafile supplied and it does not need ot be deleted
 	if utils.is_fastq_file(contigfile):
@@ -160,12 +164,22 @@ def search_for_DGRs(contigfile, output_folder, hmmfile=None):
 	print('Predicting genes with Prodigal.')
 	os.system('prodigal -i %s -o %s -a %s -f gff -p meta -q' % (formatted_contigs, protein_coordinates, protein_seqs))
 
+	if Path(protein_seqs).stat().st_size == 0:
+		errors.append('Prodigal did not predict any proteins for contig file in: %s' % (rawdata_name))
+		utils.print_errors(error_file, errors)
+		return
+
 	#Using tblout is likely a better output file format, but will require further testing
 	print('Predicting RTs with HMMER')
 	hmmout = '%s/RT_hits.txt' % (output_folder)
 	temp_files.append(hmmout)
 	#os.system('hmmscan --domtblout %s/RT_hits_domtblout.txt hmmprofiles/DGR_RTs_MSA %s' % (output_folder, protein_seqs))
 	os.system('hmmscan --tblout %s -o /dev/null hmmprofiles/DGR_RTs_MSA %s' % (hmmout, protein_seqs))
+
+	if Path(hmmout).stat().st_size == 0:
+		errors.append('No RT hits for %s' % (rawdata_name))
+		utils.print_errors(error_file, errors)
+		return
 
 	#Filter RT hits (score > 20, protein length 200-550 AA long)
 	#RT_hits should be a list of RTs in format: [[contig#, start, end], ]
@@ -333,6 +347,10 @@ def search_for_DGRs(contigfile, output_folder, hmmfile=None):
 								if (vr_start >= protein_start and vr_start <= protein_end) or (vr_end >= protein_start and vr_end <= protein_end):
 									vr_writer.write('>%s\n%s\n' % (vr.name, str(vr.seq)))
 									tr_writer.write('>%s\n%s\n' % (tr.name, str(tr.seq)))
+		else:
+			os.system('rm %s' % (VR_raw_outfile))
+			os.system('rm %s' % (TR_raw_outfile))
 
-
-
+	if len(errors) > 0:
+		utils.print_errors(error_file, errors)
+		

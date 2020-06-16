@@ -219,6 +219,10 @@ def determine_DGR_activity_from_metagenome(rawdatafile, reference_genomefile, VR
 	#Get the name of the rawdata file and remove the file extension
 	rawdata_name = rawdatafile.split('/')[-1].split('.')[0]
 
+	#Create error list for later debugging:
+	errors = []
+	error_file = '%s/DGR_analysis_%s_errors.txt' % (output_folder, rawdata_name)
+
 	#Determine if rawdatafile is in .gz format
 	if rawdatafile.split('.')[-1] == 'gz':
 		print('Uncompressing raw data')
@@ -256,30 +260,33 @@ def determine_DGR_activity_from_metagenome(rawdatafile, reference_genomefile, VR
 		pass
 
 	for VR_file, TR_file in zip(VRs, TRs):
-		VR_start, VR_end, VR_contig_num, VR_seq = utils.extract_sequence(VR_file, formatted_ref_genomefile)
-		TR_start, TR_end, TR_contig_num, TR_seq = utils.extract_sequence(TR_file, formatted_ref_genomefile)
+		if Path(VR_file).stat().st_size > 0:
+			VR_start, VR_end, VR_contig_num, VR_seq = utils.extract_sequence(VR_file, formatted_ref_genomefile)
+			TR_start, TR_end, TR_contig_num, TR_seq = utils.extract_sequence(TR_file, formatted_ref_genomefile)
 
-		if len(VR_seq) != len(TR_seq):
-			raise ValueError('VR and TR lengths are not equal')
+			if len(VR_seq) != len(TR_seq):
+				raise ValueError('VR and TR lengths are not equal')
 
-		unique_name = '%s-Contig%s_%s_%s' % (reference_genome_name, VR_contig_num, VR_start, VR_end)
+			unique_name = '%s-Contig%s_%s_%s' % (reference_genome_name, VR_contig_num, VR_start, VR_end)
 
-		print('Creating VR area files for %s' % (unique_name))
+			print('Creating VR area files for %s' % (unique_name))
 
-		#Define VR area +/- 100 bp in order to map to VR region
-		with open(vr_100_filename, 'a') as vr_100:
-			with open(formatted_ref_genomefile, 'r') as ref_genome:
-				rg_parser = SeqIO.parse(ref_genome, 'fasta')
-				for contig in rg_parser:
-					if contig.name == 'Contig%i' % (VR_contig_num):
-						vr_area_start = VR_start - 100
-						if vr_area_start < 0:
-							vr_area_start = 0
-						vr_area_end = VR_end + 100
-						if vr_area_end > len(contig.seq):
-							vr_area_end = len(contig.seq)
-						vr_100.write('>VR_area_100-%s\n%s' % (unique_name, str(contig.seq[vr_area_start:vr_area_end])))
-						break
+			#Define VR area +/- 100 bp in order to map to VR region
+			with open(vr_100_filename, 'a') as vr_100:
+				with open(formatted_ref_genomefile, 'r') as ref_genome:
+					rg_parser = SeqIO.parse(ref_genome, 'fasta')
+					for contig in rg_parser:
+						if contig.name == 'Contig%i' % (VR_contig_num):
+							vr_area_start = VR_start - 100
+							if vr_area_start < 0:
+								vr_area_start = 0
+							vr_area_end = VR_end + 100
+							if vr_area_end > len(contig.seq):
+								vr_area_end = len(contig.seq)
+							vr_100.write('>VR_area_100-%s\n%s' % (unique_name, str(contig.seq[vr_area_start:vr_area_end])))
+							break
+		else:
+			errors.append('%s in %s did not contain a VR' % (VR_file, rawdata_name))
 
 	#Store all sequences from raw data that may potentially match to the VR area +/- 100 bp
 	sequences_matched_to_vr_100_area = '%s/%s-seqs_match_VR100.fasta' % (temp_folder, rawdata_name)
@@ -499,7 +506,9 @@ def determine_DGR_activity_from_metagenome(rawdatafile, reference_genomefile, VR
 							seq_out = str(Seq(seq_out).reverse_complement())
 						aligned_VR_writer.write('>%s\n%s\n' % (result.query, seq_out))
 
-	#utils.cleanup(temp_files, temp_blast_db)
+	utils.cleanup(temp_files, temp_blast_db)
+	if len(errors) > 0:
+		utils.print_errors(error_file, errors)
 
 
 if __name__ == '__main__':

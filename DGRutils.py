@@ -138,3 +138,8 @@ def extract_genomic_region(genome_file, start, end, contig_name):
 				end = len(contig.seq)
 			return str(contig.seq)[start:end]
 	raise ValueError('Could not find contig: %s' % (contig_name))
+
+def print_errors(filename, errors):
+	with open(filename, 'w') as f:
+		for error in errors:
+			f.write('%s\n' % (error))
