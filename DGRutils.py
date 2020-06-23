@@ -84,8 +84,8 @@ def cleanup_blast_db(file_list):
 
 def cleanup(temp_files, temp_dbs):
 	time.sleep(10)
-	cleanup_files(temp_files)
-	cleanup_blast_db(temp_dbs)
+	cleanup_files(set(temp_files))
+	cleanup_blast_db(set(temp_dbs))
 
 #Input: hmm output file in tblout format, protein sequence gff file from prodigal
 #Output: List of contigs that meet criteria: example [['Contig#', start, end],]
