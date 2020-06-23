@@ -407,6 +407,7 @@ def determine_DGR_activity_from_metagenome(rawdatafile, reference_genomefile, VR
 		if len(vr_tr_names) == 0:
 			utils.cleanup(temp_files, temp_blast_db)
 			print('There were no sequences that matched to VR')
+			return
 
 		with open(vr_tr_transcripts, 'w') as vr_tr_writer:
 			sequences = SeqIO.parse(sequences_matched_to_vr_100_area, 'fasta')
