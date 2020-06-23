@@ -407,105 +407,104 @@ def determine_DGR_activity_from_metagenome(rawdatafile, reference_genomefile, VR
 		if len(vr_tr_names) == 0:
 			utils.cleanup(temp_files, temp_blast_db)
 			print('There were no sequences that matched to VR')
-			return
+		else:
+			with open(vr_tr_transcripts, 'w') as vr_tr_writer:
+				sequences = SeqIO.parse(sequences_matched_to_vr_100_area, 'fasta')
+				for sequence in sequences:
+					if sequence.name == vr_tr_names[0]:
+						vr_tr_writer.write('>%s\n%s\n' % (sequence.name, str(sequence.seq)))
+						if len(vr_tr_names) > 1:
+							vr_tr_names.pop(0)
+						else:
+							break
 
-		with open(vr_tr_transcripts, 'w') as vr_tr_writer:
-			sequences = SeqIO.parse(sequences_matched_to_vr_100_area, 'fasta')
+			#Remove any potential TR sequences
+			#Extract the TR area +/- 100 bp, then see if any of the tr_vr_sequences align perfectly to TR
+			#To do: allow for 1-2 mismatches
+			sequences = SeqIO.parse(formatted_ref_genomefile, 'fasta')
 			for sequence in sequences:
-				if sequence.name == vr_tr_names[0]:
-					vr_tr_writer.write('>%s\n%s\n' % (sequence.name, str(sequence.seq)))
-					if len(vr_tr_names) > 1:
-						vr_tr_names.pop(0)
+				if sequence.name == 'Contig%i' % (TR_contig_num):
+					start = TR_start - 100
+					if start < 0:
+						start = 0
+					end = TR_end + 100
+					if end > len(sequence.seq):
+						end = len(sequence.seq)
+					tr_area = sequence.seq[start:end]
+					tr_area_rev = tr_area.reverse_complement()
+
+			vr_sequences = '%s/VR_sequences-%s.fasta' % (output_folder, unique_name)
+			num_trs = 0
+			with open(vr_sequences, 'w') as vr_writer:
+				sequences = SeqIO.parse(vr_tr_transcripts, 'fasta')
+				for sequence in sequences:
+					if sequence.seq in tr_area or sequence.seq in tr_area_rev:
+						num_trs += 1
 					else:
-						break
+						vr_writer.write('>%s\n%s\n' % (sequence.name, str(sequence.seq)))
 
-		#Remove any potential TR sequences
-		#Extract the TR area +/- 100 bp, then see if any of the tr_vr_sequences align perfectly to TR
-		#To do: allow for 1-2 mismatches
-		sequences = SeqIO.parse(formatted_ref_genomefile, 'fasta')
-		for sequence in sequences:
-			if sequence.name == 'Contig%i' % (TR_contig_num):
-				start = TR_start - 100
-				if start < 0:
-					start = 0
-				end = TR_end + 100
-				if end > len(sequence.seq):
-					end = len(sequence.seq)
-				tr_area = sequence.seq[start:end]
-				tr_area_rev = tr_area.reverse_complement()
+			#Align VR sequences and orient the VR/TR pair
+			aligned_VR_sequences = '%s/aligned_VR_sequences-%s.fa' % (output_folder, unique_name)
+			vr_blast_database = '%s/vrblastdb' % (temp_folder)
+			vr_blast_output = '%s/vr_aligning_blastout.xml' % (temp_folder)
 
-		vr_sequences = '%s/VR_sequences-%s.fasta' % (output_folder, unique_name)
-		num_trs = 0
-		with open(vr_sequences, 'w') as vr_writer:
-			sequences = SeqIO.parse(vr_tr_transcripts, 'fasta')
-			for sequence in sequences:
-				if sequence.seq in tr_area or sequence.seq in tr_area_rev:
-					num_trs += 1
-				else:
-					vr_writer.write('>%s\n%s\n' % (sequence.name, str(sequence.seq)))
+			temp_blast_db.append(vr_blast_database)
+			temp_files.append(vr_blast_output)
 
-		#Align VR sequences and orient the VR/TR pair
-		aligned_VR_sequences = '%s/aligned_VR_sequences-%s.fa' % (output_folder, unique_name)
-		vr_blast_database = '%s/vrblastdb' % (temp_folder)
-		vr_blast_output = '%s/vr_aligning_blastout.xml' % (temp_folder)
+			cline = NcbimakeblastdbCommandline(dbtype='nucl', input_file=VR_file, out=vr_blast_database)
+			cline()
 
-		temp_blast_db.append(vr_blast_database)
-		temp_files.append(vr_blast_output)
+			cline = NcbiblastnCommandline(out=vr_blast_output, db=vr_blast_database, query=vr_sequences, outfmt=5, word_size=8, reward=1, penalty=-1, evalue=1e-4, gapopen=2, gapextend=1, perc_identity=50)
+			cline()
 
-		cline = NcbimakeblastdbCommandline(dbtype='nucl', input_file=VR_file, out=vr_blast_database)
-		cline()
+			amiss, tmiss = 0, 0
+			for i in range(len(VR_seq)):
+				if VR_seq[i] != TR_seq[i]:
+					if TR_seq[i] == 'A':
+						amiss += 1
+					elif TR_seq[i] == 'T':
+						tmiss += 1
+			reverse = False
+			if tmiss > amiss:
+				reverse = True
 
-		cline = NcbiblastnCommandline(out=vr_blast_output, db=vr_blast_database, query=vr_sequences, outfmt=5, word_size=8, reward=1, penalty=-1, evalue=1e-4, gapopen=2, gapextend=1, perc_identity=50)
-		cline()
-
-		amiss, tmiss = 0, 0
-		for i in range(len(VR_seq)):
-			if VR_seq[i] != TR_seq[i]:
-				if TR_seq[i] == 'A':
-					amiss += 1
-				elif TR_seq[i] == 'T':
-					tmiss += 1
-		reverse = False
-		if tmiss > amiss:
-			reverse = True
-
-		with open(vr_blast_output, 'r') as f:
-			results = NCBIXML.parse(f)
-			with open(aligned_VR_sequences, 'w') as aligned_VR_writer:
-				vr_oriented = VR_seq
-				if reverse:
-					vr_oriented = str(Seq(VR_seq).reverse_complement())
-				aligned_VR_writer.write('>%s\n%s\n' % ('VR', vr_oriented))
-				for result in results:
-					if len(result.alignments) > 0:
-						lowest = 1
-						best = [0, 0]
-						for anum, alignment in enumerate(result.alignments):
-							for hnum, hsp in enumerate(alignment.hsps):
-								if hsp.expect < lowest:
-									lowest = hsp.expect
-									best = [anum, hnum]
-						alignment = result.alignments[best[0]]
-						hsp = alignment.hsps[best[1]]
-						seq_out = ''
-						if hsp.sbjct_start < hsp.sbjct_end:
-							start = hsp.sbjct_start - 1
-						else:
-							start = hsp.sbjct_end - 1
-						i = 0
-						for i in range(start):
-							seq_out += '-'
-						if hsp.sbjct_start < hsp.sbjct_end:
-							seq_out += hsp.query
-						else:
-							seq_out += str(Seq(hsp.query).reverse_complement())
-						end = len(VR_seq) - start - len(hsp.query)
-						i = 0
-						for i in range(end):
-							seq_out += '-'
-						if reverse:
-							seq_out = str(Seq(seq_out).reverse_complement())
-						aligned_VR_writer.write('>%s\n%s\n' % (result.query, seq_out))
+			with open(vr_blast_output, 'r') as f:
+				results = NCBIXML.parse(f)
+				with open(aligned_VR_sequences, 'w') as aligned_VR_writer:
+					vr_oriented = VR_seq
+					if reverse:
+						vr_oriented = str(Seq(VR_seq).reverse_complement())
+					aligned_VR_writer.write('>%s\n%s\n' % ('VR', vr_oriented))
+					for result in results:
+						if len(result.alignments) > 0:
+							lowest = 1
+							best = [0, 0]
+							for anum, alignment in enumerate(result.alignments):
+								for hnum, hsp in enumerate(alignment.hsps):
+									if hsp.expect < lowest:
+										lowest = hsp.expect
+										best = [anum, hnum]
+							alignment = result.alignments[best[0]]
+							hsp = alignment.hsps[best[1]]
+							seq_out = ''
+							if hsp.sbjct_start < hsp.sbjct_end:
+								start = hsp.sbjct_start - 1
+							else:
+								start = hsp.sbjct_end - 1
+							i = 0
+							for i in range(start):
+								seq_out += '-'
+							if hsp.sbjct_start < hsp.sbjct_end:
+								seq_out += hsp.query
+							else:
+								seq_out += str(Seq(hsp.query).reverse_complement())
+							end = len(VR_seq) - start - len(hsp.query)
+							i = 0
+							for i in range(end):
+								seq_out += '-'
+							if reverse:
+								seq_out = str(Seq(seq_out).reverse_complement())
+							aligned_VR_writer.write('>%s\n%s\n' % (result.query, seq_out))
 
 	utils.cleanup(temp_files, temp_blast_db)
 	if len(errors) > 0:
