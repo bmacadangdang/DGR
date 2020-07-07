@@ -1,4 +1,5 @@
 import argparse
+from pathlib import Path
 
 import DGRutils as utils
 import DGRanalysis as analysis
@@ -58,6 +59,10 @@ if __name__ == '__main__':
 		pass
 
 	'''
+
+	if args.mode == 'dgrAnalysis' or args.mode == 'dgrFinder' or args.mode == 'dgrProcess':
+		if not Path(args.out_dir).exists():
+			Path(args.out_dir).mkdir(parents=True, exist_ok=True)
 
 	if args.mode == 'dgrAnalysis':
 		if args.reference_genome == None:
